@@ -1,0 +1,136 @@
+---
+title: "Machine Learning Project"
+author: "Andy Rosa"
+date: "July 27, 2014"
+output: html_document
+---
+
+The purpose of this analysis is to build a machine learning algorithm that correctly predicts the how well a participant performs particular activities. The model will be built using personal activity data from accelerometers on the belt, forearm, arm and dumbell of the six participants in the dataset. The participants were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website [here](http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset).
+
+Data Preparation
+--------------
+
+We begin by loading necessary packages and downloading the training set [provided](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) for the project:
+
+```{r warning=FALSE, message=FALSE}
+# load packages
+library(caret)
+library(randomForest)
+library(gbm)
+
+# download the dataset
+#fileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+#download.file(fileURL, "pml-training.csv", method = "curl")
+
+# read into data frame
+d <- read.csv("pml-training.csv", stringsAsFactors = FALSE)
+```
+
+Through an exploratory look at the dataset we can see that many of the integer and numeric variables in the dataset consist of a large amount of `NA` values. We will remove these from the dataset by only keeping those columns with no `NA` values present:
+
+```{r}
+# remove populated mostly with NA values
+vars <- apply(d, 2, function(x) sum(is.na(x)))
+vars <- names(vars[vars == 0])
+d <- d[, vars]
+```
+
+We can also see that many of the character variables contain a large of amount of blank values and `"#DIV/0!"` values (which I imagine are a product of Excel calculations). We'll remove these in a similar manner as the `NA` values:
+
+```{r}
+# remove columns with a large amount of "" and "#DIV/0!" values
+vars <- colSums(d == "#DIV/0!") + colSums(d == "")
+vars <- names(vars[vars == 0])
+d <- d[, vars]
+```
+
+Our reasoning for removing these columns from our dataset is to reduce the amount of noise and improve the predictive quality of the variables our models consider in building prediction algorithms.
+
+The first seven columns in the dataset consist of metadata such as the name of the participant and timestamps of when the activity was recorded. These will be removed as they should have no predictive value:
+
+```{r}
+# remove first seven columns which consist of date stamps metadata not helpful in
+# predicting activity
+d <- d[, 8:60]
+```
+
+The variable we are trying to predict is the `classe` variable. We'll convert this to a factor to work better with our modeling functions:
+
+```{r}
+# convert classe variable to factor
+d$classe <- factor(d$classe)
+```
+
+To perform **cross-validation** we'll want to split our training dataset further into a true *training* dataset to train our model on, and then a *testing* set to cross-validate our results against to confirm our model is not over-fitted. We'll use 60% of the dataset for *training* and 40% for *testing* and use `set.seed` for reproducibility purposes:
+
+```{r}
+# perform cross validation by splitting the training dataset into a training and testing set
+set.seed(12345)
+inTrain <- createDataPartition(y = d$classe, p = .6, list = FALSE)
+training <- d[inTrain, ]
+testing <- d[-inTrain, ]
+```
+
+At this point our *training* dataset consists of 52 predictor variables. In order to reduce noise and improve the efficiency and accuracy of our model we'll ideally want to reduce this number. We'll start by determining whether any of the variables are highly correlated with one another since highly correlated variables can lead to overfitting and inaccuracy:
+
+```{r}
+# identify highly correlated variables
+cor.M <- abs(cor(training[, -53]))
+diag(cor.M) <- 0
+high.cor.vars <- which(cor.M > .8, arr.ind = TRUE)[,1]
+names(high.cor.vars)
+```
+
+This exploratory look identifies a large number of variables, we then remove these from our *training* dataset:
+
+```{r}
+training <- training[, !names(training) %in% names(high.cor.vars)]
+dim(training)
+```
+
+We now have a much more manageable number of variables with high variance.
+
+Model Training
+----------------
+
+We'll use two common modeling techniques, **random forest** and **boosting**. We begin with random forest:
+
+```{r}
+act.rf <- randomForest(classe ~ ., data = training, proximity = TRUE, ntree = 500)
+act.rf
+```
+
+As you see in the results our random forest model performed extremely well on the training dataset with an **estimated out of bag error rate** of only 1.33%. We set the `ntree` parameter to 500 for this example. Increasing the number of trees to 1,000 is much more computationally taxing and improved the accuracy about one-tenth of one percent which is not enough of a benefit to justify the marked decrease in efficiency.
+
+Next we'll review the boosting method, specifically the gradient boosting method:
+
+```{r}
+act.boost <- train(classe ~ ., method = "gbm", data = training, verbose = FALSE)
+act.boost
+```
+
+The boosting method also performed well at 91% accuracy, but not as well as 98.4% accuracy of the random forest model.
+
+Cross-Validation
+-------------------
+
+Now we'll see how well the model **performs out-of-sample** by applying it to the 40% *testing* data set we created earlier:
+
+```{r}
+pred <- predict(act.rf, testing)
+table(pred,testing$classe)
+```
+
+Here's our **accuracy**:
+
+```{r}
+sum(pred == testing$classe) / length(testing$classe)
+```
+
+And our **expected out-of-sample error**:
+
+```{r}
+sum(pred != testing$classe) / length(testing$classe)
+```
+
+As you can see the model performed extremely well with an **out-of-sample** error of only 1.7%. Given that our model was trained on a separate dataset and performed this well out of sample we can be confident we have a strong predictive model.
