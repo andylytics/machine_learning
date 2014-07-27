@@ -70,8 +70,8 @@ library(randomForest)
 library(gbm)
 
 # download the dataset
-#fileURL &lt;- &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv&quot;
-#download.file(fileURL, &quot;pml-training.csv&quot;, method = &quot;curl&quot;)
+fileURL &lt;- &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv&quot;
+download.file(fileURL, &quot;pml-training.csv&quot;, method = &quot;curl&quot;)
 
 # read into data frame
 d &lt;- read.csv(&quot;pml-training.csv&quot;, stringsAsFactors = FALSE)</code></pre>
@@ -144,44 +144,14 @@ act.rf</code></pre>
 ## C    0   33 2009   11    1    0.021908
 ## D    0    0   57 1867    6    0.032642
 ## E    0    4    3   10 2148    0.007852</code></pre>
-<p>As you see in the results our random forest model performed extremely well on the training dataset with an <strong>estimated out of bag error rate</strong> of only 1.33%. We set the <code>ntree</code> parameter to 500 for this example. Increasing the number of trees to 1,000 is much more computationally taxing and improved the accuracy about one-tenth of one percent which is not enough of a benefit to justify the marked decrease in efficiency.</p>
-<p>Next we’ll review the boosting method, specifically the gradient boosting method:</p>
+<p>As you see in the results our random forest model performed extremely well on the training dataset with an <strong>estimated out of bag error rate</strong> of only 1.61%. We set the <code>ntree</code> parameter to 500 for this example. Increasing the number of trees to 1,000 is much more computationally taxing and improved the accuracy about one-tenth of one percent which is not enough of a benefit to justify the marked decrease in efficiency.</p>
+<p>Next we reviewed the boosting method, specifically the gradient boosting method with the following code:</p>
 <pre class="r"><code>act.boost &lt;- train(classe ~ ., method = &quot;gbm&quot;, data = training, verbose = FALSE)</code></pre>
-<pre><code>## Loading required package: plyr</code></pre>
-<pre class="r"><code>act.boost</code></pre>
-<pre><code>## Stochastic Gradient Boosting 
-## 
-## 11776 samples
-##    30 predictors
-##     5 classes: 'A', 'B', 'C', 'D', 'E' 
-## 
-## No pre-processing
-## Resampling: Bootstrapped (25 reps) 
-## 
-## Summary of sample sizes: 11776, 11776, 11776, 11776, 11776, 11776, ... 
-## 
-## Resampling results across tuning parameters:
-## 
-##   interaction.depth  n.trees  Accuracy  Kappa  Accuracy SD  Kappa SD
-##   1                  50       0.7       0.6    0.007        0.009   
-##   1                  100      0.8       0.7    0.008        0.01    
-##   1                  200      0.8       0.7    0.006        0.007   
-##   2                  50       0.8       0.7    0.008        0.01    
-##   2                  100      0.8       0.8    0.005        0.006   
-##   2                  200      0.9       0.8    0.005        0.006   
-##   3                  50       0.8       0.8    0.006        0.008   
-##   3                  100      0.9       0.9    0.006        0.007   
-##   3                  200      0.9       0.9    0.005        0.006   
-## 
-## Tuning parameter 'shrinkage' was held constant at a value of 0.1
-## Accuracy was used to select the optimal model using  the largest value.
-## The final values used for the model were n.trees = 150,
-##  interaction.depth = 3 and shrinkage = 0.1.</code></pre>
-<p>The boosting method also performed well at 91% accuracy, but not as well as 98.4% accuracy of the random forest model.</p>
+<p>The boosting method also performed well at around 91% accuracy, but not as well as 98.4% accuracy of the random forest model. We do not show the results of the boosting method here as the model is not only less accurate but also takes quite long to compute.</p>
 </div>
 <div id="cross-validation" class="section level2">
 <h2>Cross-Validation</h2>
-<p>Now we’ll see how well the model <strong>performs out-of-sample</strong> by applying it to the 40% <em>testing</em> data set we created earlier:</p>
+<p>Now we’ll see how well the chosen random forest model <strong>performs out-of-sample</strong> by applying it to the 40% <em>testing</em> data set we created earlier:</p>
 <pre class="r"><code>pred &lt;- predict(act.rf, testing)
 table(pred,testing$classe)</code></pre>
 <pre><code>##     
@@ -197,7 +167,25 @@ table(pred,testing$classe)</code></pre>
 <p>And our <strong>expected out-of-sample error</strong>:</p>
 <pre class="r"><code>sum(pred != testing$classe) / length(testing$classe)</code></pre>
 <pre><code>## [1] 0.01338</code></pre>
-<p>As you can see the model performed extremely well with an <strong>out-of-sample</strong> error of only 1.7%. Given that our model was trained on a separate dataset and performed this well out of sample we can be confident we have a strong predictive model.</p>
+<p>As you can see the model performed extremely well with an <strong>out-of-sample</strong> error of only 1.338%, which is even a slight improvement on the 1.61% error rate observed in the training dataset. Given that our model was trained on a separate dataset and performed this well out of sample we can be confident we have a strong predictive model.</p>
+<p>For purposes of the project, we can apply the model to the provided testing set:</p>
+<pre class="r"><code># download the test dataset
+fileURL &lt;- &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;
+download.file(fileURL, &quot;pml-testing.csv&quot;, method = &quot;curl&quot;)
+
+# read into data frame
+test &lt;- read.csv(&quot;pml-testing.csv&quot;, stringsAsFactors = FALSE)
+
+# make prediction
+pred.rf1.final &lt;- predict(act.rf, test)
+
+# write out predictions
+n &lt;- length(pred.rf1.final)
+pred.rf1.final &lt;- as.character(pred.rf1.final)
+pred.rf1.final</code></pre>
+<pre><code>##  [1] &quot;B&quot; &quot;A&quot; &quot;B&quot; &quot;A&quot; &quot;A&quot; &quot;E&quot; &quot;D&quot; &quot;B&quot; &quot;A&quot; &quot;A&quot; &quot;B&quot; &quot;C&quot; &quot;B&quot; &quot;A&quot; &quot;E&quot; &quot;E&quot; &quot;A&quot;
+## [18] &quot;B&quot; &quot;B&quot; &quot;B&quot;</code></pre>
+<p>Our random forest model performed with 100% accuracy against the <code>pml-testing.csv</code> dataset.</p>
 </div>
 
 
