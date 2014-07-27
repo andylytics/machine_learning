@@ -19,8 +19,8 @@ library(randomForest)
 library(gbm)
 
 # download the dataset
-#fileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
-#download.file(fileURL, "pml-training.csv", method = "curl")
+fileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+download.file(fileURL, "pml-training.csv", method = "curl")
 
 # read into data frame
 d <- read.csv("pml-training.csv", stringsAsFactors = FALSE)
@@ -100,21 +100,20 @@ act.rf <- randomForest(classe ~ ., data = training, proximity = TRUE, ntree = 50
 act.rf
 ```
 
-As you see in the results our random forest model performed extremely well on the training dataset with an **estimated out of bag error rate** of only 1.33%. We set the `ntree` parameter to 500 for this example. Increasing the number of trees to 1,000 is much more computationally taxing and improved the accuracy about one-tenth of one percent which is not enough of a benefit to justify the marked decrease in efficiency.
+As you see in the results our random forest model performed extremely well on the training dataset with an **estimated out of bag error rate** of only 1.61%. We set the `ntree` parameter to 500 for this example. Increasing the number of trees to 1,000 is much more computationally taxing and improved the accuracy about one-tenth of one percent which is not enough of a benefit to justify the marked decrease in efficiency.
 
-Next we'll review the boosting method, specifically the gradient boosting method:
+Next we reviewed the boosting method, specifically the gradient boosting method with the following code:
 
-```{r}
+```{r eval = FALSE}
 act.boost <- train(classe ~ ., method = "gbm", data = training, verbose = FALSE)
-act.boost
 ```
 
-The boosting method also performed well at 91% accuracy, but not as well as 98.4% accuracy of the random forest model.
+The boosting method also performed well at around 91% accuracy, but not as well as 98.4% accuracy of the random forest model. We do not show the results of the boosting method here as the model is not only less accurate but also takes quite long to compute.
 
 Cross-Validation
 -------------------
 
-Now we'll see how well the model **performs out-of-sample** by applying it to the 40% *testing* data set we created earlier:
+Now we'll see how well the chosen random forest model **performs out-of-sample** by applying it to the 40% *testing* data set we created earlier:
 
 ```{r}
 pred <- predict(act.rf, testing)
@@ -133,4 +132,25 @@ And our **expected out-of-sample error**:
 sum(pred != testing$classe) / length(testing$classe)
 ```
 
-As you can see the model performed extremely well with an **out-of-sample** error of only 1.7%. Given that our model was trained on a separate dataset and performed this well out of sample we can be confident we have a strong predictive model.
+As you can see the model performed extremely well with an **out-of-sample** error of only 1.338%, which is even a slight improvement on the 1.61% error rate observed in the training dataset. Given that our model was trained on a separate dataset and performed this well out of sample we can be confident we have a strong predictive model.
+
+For purposes of the project, we can apply the model to the provided testing set:
+
+```{r}
+# download the test dataset
+fileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(fileURL, "pml-testing.csv", method = "curl")
+
+# read into data frame
+test <- read.csv("pml-testing.csv", stringsAsFactors = FALSE)
+
+# make prediction
+pred.rf1.final <- predict(act.rf, test)
+
+# write out predictions
+n <- length(pred.rf1.final)
+pred.rf1.final <- as.character(pred.rf1.final)
+pred.rf1.final
+```
+
+Our random forest model performed with 100% accuracy against the `pml-testing.csv` dataset.
